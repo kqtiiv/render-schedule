@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# Build the app quietly; send Gradle's output to stderr so stdout is only your JSON
+"$DIR/gradlew" -q -p "$DIR" installDist >&2
+
+# Run the built program, passing along every argument the user typed
+exec "$DIR/build/install/render-schedule/bin/render-schedule" "$@"

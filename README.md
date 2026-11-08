@@ -1,177 +1,97 @@
-# Internship, placement and graduate take home assessment
+# render-schedule
 
-[job-ad]: https://incident.io/careers#open-roles
+A command-line tool that renders an on-call schedule. It takes a rotation (users who take turns
+covering fixed-length shifts) and a list of overrides (temporary cover), and outputs who is on call
+for each part of a given time window.
 
-## About us
+Written in Kotlin, using `kotlinx.serialization` for JSON. The original task description is in
+[`ProblemDescription.md`](./ProblemDescription.md).
 
-incident.io is the leading AI incident response platform, relied on by some of the best engineering teams in the world when things go wrong.
+## Requirements
 
-Since launching in 2021, we've helped over 2,000 companies, including OpenAI, Netflix, and Airbnb, run more than 1 million incidents.
+- **Java 17 or newer** must be installed to run Gradle. Check with `java -version`.
 
-The stakes are real, the talent is insane, and somehow it's a genuinely lovely place to work. We all pull our weight, go the extra mile, and put in the bit of magic most companies don't have time for, all while having fun and never taking ourselves too seriously.
+## Running it
 
-We've raised $96 million from Index Ventures, Insight Partners, and Point Nine, and we're growing fast. There's never been a better time to join.
-
-## What is early careers at incident.io like?
-
-What you need to be successful:
-- Have a bias for action and ownership and like to get things shipped, learn from mistakes, and take responsibility for your work.
-- Stay curious and don’t just accept things as they are, enjoying asking “why?” and “what if?”
-- Collaborate in person and get energy from being around others, bouncing around ideas, asking questions, and giving and receiving feedback.
-- Love building whether it’s features, tools, or ideas, and enjoy creating things and seeing them make an impact.
-- Enjoy fast-paced environments and feel comfortable with change and the energy that comes with moving quickly.
-- Keep a low ego by staying humble and staying focused on the wider mission.
-
-> For more info, check out our [candidate hub](https://incident.io/careers/candidate-hub/early-careers) for a behind-the-scenes look at the life of interns and grads at incident.
-
-## Complete our take-home challenge
-
-### Intro
-
-Imagine you're working at incident.io and we're building a product that can page
-(call them, send an SMS, send a notification to a mobile app, etc) engineers
-when their services are involved in an incident.
-
-When configuring an on-call system, you don't want to say "whenever service X
-goes down, page Y person" as that person probably has a social life and won't
-appreciate receiving all the pages, all the time.
-
-Instead, you want to build schedules: a set of people who take it in turns to
-provide cover for a service by rotating through on-call shifts.
-
-In JSON form, the configuration that describes how a schedule behaves might look
-like this:
-
-```js
-// This is a schedule.
-{
-  "users": [
-    "alice",
-    "bob",
-    "charlie"
-  ],
-
-  // 5pm, Friday 6th November 2026
-  "handover_start_at": "2026-11-06T17:00:00Z",
-  "handover_interval_days": 7
-}
-```
-
-In that example, our schedule will rotate evenly between those users with the first shift starting at 5pm, 
-Friday 6th November 2026, with shift changes happening every 7 days.
-
-That means:
-
-- Alice takes the shift for 1 week, starting at 5pm, Friday 6th November 2026
-- Then Bob is on-call for 1 week from 5pm, Friday 13th November 2026
-- Then Charlie, then...
-- Back to Alice again.
-
-Visually, this might look like this:
-
-![Schedule](./schedule2026.png)
-
-Schedule systems often support 'overrides' where you can add temporary shift
-modifications to a schedule, such as if someone wants to go walk their dog or go
-to the cinema.
-
-An override specifies the person that will take the shift and the time period it covers.
-An example of Charlie covering 5pm–10pm on Monday 9th November 2026 would look like this:
-
-```js
-// This is an override.
-{
-  // Charlie will cover this shift
-  "user": "charlie",
-  // 5pm, Monday 9th November 2026
-  "start_at": "2026-11-09T17:00:00Z",
-  // 10pm, Monday 9th November 2026
-  "end_at": "2026-11-09T22:00:00Z"
-}
-```
-
-You can assume that overrides will always be after the schedule's `handover_start_at`, and won't 
-overlap with each other.
-
-### Task
-
-We would like you to build – in any language you choose, but ideally one you are
-very comfortable in – a script called `./render-schedule` that implements a
-scheduling algorithm.
-
-It should be run like so:
+From the project root:
 
 ```console
 $ ./render-schedule \
-    --schedule=schedule.json \
-    --overrides=overrides.json \
+    --schedule=examples/schedule.json \
+    --overrides=examples/overrides.json \
     --from='2026-11-06T17:00:00Z' \
     --until='2026-11-20T17:00:00Z'
-[
-  {
-    "user": "alice",
-    "start_at": "2026-11-06T17:00:00Z",
-    "end_at": "2026-11-09T17:00:00Z"
-  },
-  {
-    "user": "charlie",
-    "start_at": "2026-11-09T17:00:00Z",
-    "end_at": "2026-11-09T22:00:00Z"
-  },
-  {
-    "user": "alice",
-    "start_at": "2026-11-09T22:00:00Z",
-    "end_at": "2026-11-13T17:00:00Z"
-  },
-  {
-    "user": "bob",
-    "start_at": "2026-11-13T17:00:00Z",
-    "end_at": "2026-11-20T17:00:00Z"
-  }
-]
 ```
 
-Where:
+The script builds the project and then runs it. The rendered schedule is printed to stdout as a JSON array. Any build output goes to stderr, so you can safely pipe or redirect the result:
 
-- `--schedule` JSON file containing a definition of a schedule (see above example)
-- `--overrides` JSON file containing an array of overrides (see above example)
-- `--from` the time from which to start listing entries
-- `--until` the time until which to list entries
+```console
+$ ./render-schedule ... > output.json
+```
 
-The script should output a JSON array of final schedule as a list of entries.
-This should take into account the projected entries (based on the handover
-information in the schedule) alongside the provided overrides.
+| Argument | Description |
+|---|---|
+| `--schedule` | Path to a JSON file describing the rotation (`users`, `handover_start_at`, `handover_interval_days`) |
+| `--overrides` | Path to a JSON file containing an array of overrides (`user`, `start_at`, `end_at`) |
+| `--from` | Start of the window to render (ISO-8601 UTC, e.g. `2026-11-06T17:00:00Z`) |
+| `--until` | End of the window to render |
 
-Your schedule should also be truncated based on the from and until parameters provided. 
-For example, if an entry was from 1pm November 7 → 1pm November 9, 
-but from was 2pm November 8, the entry should be returned as 2pm November 8 → 1pm November 9 
-(ignoring the part of the entry that is outside the provided range).
+Example input and expected output are in [`examples/`](./examples).
 
-Entries should be truncated to match the from/until parameters.
+> **"Permission denied"** Run `chmod +x render-schedule gradlew` once.
+>
+> **On Windows**, run the script from WSL or Git Bash.
 
-We care more about correctness than performance: we will only run your code for
-time windows up to a few weeks, and with under 100 overrides.
+## Running the tests
 
-### Code submission and video explanation
+```console
+$ ./gradlew test
+```
 
-We'd like you to submit two things:
-1. Your code
-2. A 5-minute video walkthrough
+The tests run the scheduler against the example in `examples/` and check the output matches
+`examples/expected_output.json`.
 
-Please submit a ZIP file containing the code and a `README.md` that includes 
-instructions on running your code, including installation of dependencies.
+## How it works
 
-In the 'notes' field, include a link to a 5-minute video explaining:
-- How you approached solving the problem, and why you chose that approach
-- How your code implements that solution
-- Now you've built the scheduler, what other product features might you build
-  on top of this
+All the scheduling logic is in [`Scheduler.kt`](./src/main/kotlin/schedule/Scheduler.kt). The
+algorithm has three steps:
 
-Imagine you're showing this code to a new team-mate: your video should get
-them up-to-speed on the codebase.
+1. **Project the rotation.** Starting from `handover_start_at`, generate shifts of
+   `handover_interval_days`, cycling through `users` in order, and keep the ones that overlap the
+   window.
+2. **Apply overrides: cut a hole, then fill it.** For each override, cut its time range out of the
+   rotation shifts. A shift becomes 0, 1 or 2 pieces depending on how the override overlaps it.
+   Then add the overrides themselves and sort everything by start time. An override that crosses a
+   handover cuts the end off one shift and the start off the next, with no special-casing.
+3. **Truncate to the window.** Trim every entry to `[from, until)` and drop anything left with no
+   length, such as an override entirely outside the window.
 
-(We recommend [Loom](https://www.loom.com) for recording this, but you're welcome 
-to use any other tool you're comfortable with).
+All time ranges are treated as **half-open**: an entry includes its start but not its end. So a
+shift ending at 17:00 and the next starting at 17:00 don't overlap, and an entry that ends exactly
+at `from` is excluded.
 
-_You may use AI tools, but you remain responsible for the code you submit. 
-You should understand what it does and be able to explain and justify the decisions behind it._
+I chose this approach because it reads the way people describe overrides therefore, is easily abstractable and traceable, and each step can be checked on its own. The brief puts correctness ahead of performance, and with windows of a few weeks and fewer than 100 overrides, the simple loop is more than fast enough.
+
+### Project layout
+
+```
+render-schedule                  Entry-point script: builds, then runs the app
+src/main/kotlin/schedule/
+  Main.kt                        Parses arguments, reads the input files, prints JSON
+  Model.kt                       Schedule and Entry data classes, timestamp (de)serialisation
+  Scheduler.kt                   The scheduling algorithm
+src/test/kotlin/schedule/
+  SchedulerTest.kt               Tests
+examples/                        Example schedule, overrides and expected output
+```
+
+### Assumptions and decisions
+
+- **All times are UTC**, so a "day" is always exactly 24 hours.
+- **Overrides don't overlap each other** and always start after `handover_start_at`, as stated in
+  the brief.
+- **Nothing is on call before `handover_start_at`.** If `from` is earlier, the output starts at
+  `handover_start_at`.
+- **Entries aren't merged.** If an override gives a shift to the person who's already on call, the
+  output contains consecutive entries for the same user rather than one combined entry.
+- **A schedule needs at least one user.**
